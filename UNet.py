@@ -2,6 +2,8 @@ from PIL import Image
 import numpy as np
 import os
 from sklearn.model_selection import train_test_split
+import torch
+from torch.utils.data import DataLoader, TensorDataset 
 
 def load_images_from_folder(folder_path):
     images = []
@@ -48,11 +50,28 @@ def preprocess_data():
 
 X_train, X_val, X_test, y_train, y_val, y_test = preprocess_data()
 
+def numpy_to_tensor(X_train, y_train, X_val, y_val, X_test, y_test):
+    # Convert the NumPy arrays to PyTorch tensors
+    X_train_tensor = torch.tensor(X_train).float()
+    y_train_tensor = torch.tensor(y_train).long()
+    X_val_tensor = torch.tensor(X_val).float()
+    y_val_tensor = torch.tensor(y_val).long()
+    X_test_tensor = torch.tensor(X_test).float()
+    y_test_tensor = torch.tensor(y_test).long()
+    
+    return X_train_tensor, y_train_tensor, X_val_tensor, y_val_tensor, X_test_tensor, y_test_tensor
 
-
-
-
-
+def data_loaders(X_train_tensor, y_train_tensor, X_val_tensor, y_val_tensor, X_test_tensor, y_test_tensor, batch_size=32):
+    # Create DataLoader objects
+    train_dataset = TensorDataset(X_train_tensor, y_train_tensor)
+    val_dataset = TensorDataset(X_val_tensor, y_val_tensor)
+    test_dataset = TensorDataset(X_test_tensor, y_test_tensor)
+    
+    train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
+    val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False)
+    test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False)
+    
+    return train_loader, val_loader, test_loader
 
     # Encoder (Downsampling)
     # Add a series of Conv2D, Activation, and MaxPooling layers

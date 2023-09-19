@@ -3,6 +3,7 @@ import numpy as np
 import os
 from sklearn.model_selection import train_test_split
 import torch
+import torch.nn as nn
 from torch.utils.data import DataLoader, TensorDataset 
 
 def load_images_from_folder(folder_path):
@@ -72,6 +73,68 @@ def data_loaders(X_train_tensor, y_train_tensor, X_val_tensor, y_val_tensor, X_t
     test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False)
     
     return train_loader, val_loader, test_loader
+
+X_train_tensor, y_train_tensor, X_val_tensor, y_val_tensor, X_test_tensor, y_test_tensor = numpy_to_tensor(X_train, y_train, X_val, y_val, X_test, y_test)
+train_loader, val_loader, test_loader = data_loaders(X_train_tensor, y_train_tensor, X_val_tensor, y_val_tensor, X_test_tensor, y_test_tensor) 
+
+class UNet(nn.Module):
+    def __init__(self):
+        super(UNet, self).__init__()
+        
+        # Encoder (Downsampling)
+        self.enc1 = self.conv_block(1, 64)
+        self.enc2 = self.conv_block(64, 128)
+        self.enc3 = self.conv_block(128, 256)
+        
+        # Bottleneck
+        self.bottleneck = self.conv_block(256, 512)
+        
+        # Decoder (Upsampling)
+        self.dec3 = self.upconv_block(512, 256)
+        self.dec2 = self.upconv_block(256, 128)
+        self.dec1 = self.upconv_block(128, 64)
+        
+        # Output Layer
+        self.out_conv = nn.Conv2d(64, 4, kernel_size=1)  #4 classes for segments
+        
+    def conv_block(self, in_channels, out_channels):
+        return nn.Sequential(
+            nn.Conv2d(in_channels, out_channels, kernel_size=3, padding=1),
+            nn.ReLU(inplace=True),
+            nn.Conv2d(out_channels, out_channels, kernel_size=3, padding=1),
+            nn.ReLU(inplace=True),
+            nn.MaxPool2d(kernel_size=2, stride=2)
+        )
+        
+    def upconv_block(self, in_channels, out_channels):
+        return nn.Sequential(
+            nn.ConvTranspose2d(in_channels, out_channels, kernel_size=2, stride=2),
+            nn.ReLU(inplace=True)
+        )
+        
+    def forward(self, x):
+        # Encoder
+        x1 = self.enc1(x)
+        x2 = self.enc2(x1)
+        x3 = self.enc3(x2)
+        
+        # Bottleneck
+        x = self.bottleneck(x3)
+        
+        # Decoder
+        x = self.dec3(x)
+        x += x3
+        x = self.dec2(x)
+        x += x2
+        x = self.dec1(x)
+        x += x1
+        
+        # Output layer
+        x = self.out_conv(x)
+        
+        return x
+
+
 
     # Encoder (Downsampling)
     # Add a series of Conv2D, Activation, and MaxPooling layers

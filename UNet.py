@@ -11,22 +11,43 @@ def load_images_from_folder(folder_path):
             img = Image.open(img_path).convert('L')  # Convert image to grayscale
             img = np.array(img)
             images.append(img)
+    print(f"Loaded {len(images)} images from {folder_path}")  # Debugging line
     return np.array(images)
 
 def preprocess_data():
-    X_folder = '/Users/noammendelson/Documents/Demo-2/keras_png_slices_data/X_folder'
-    y_folder = '/Users/noammendelson/Documents/Demo-2/keras_png_slices_data/y_folder'
+    root_path = '/Users/noammendelson/Documents/Demo-2/keras_png_slices_data/'
 
-    X = load_images_from_folder(X_folder)
-    y = load_images_from_folder(y_folder)
+    # Define folder paths
+    X_train_folder = os.path.join(root_path, 'keras_png_slices_train')
+    X_val_folder = os.path.join(root_path, 'keras_png_slices_validate')
+    X_test_folder = os.path.join(root_path, 'keras_png_slices_test')
 
-    # Normalize your data to [0, 1]
-    X = X.astype('float32') / 255.0
-    y = y.astype('float32') / 255.0
+    y_train_folder = os.path.join(root_path, 'keras_png_slices_seg_train')
+    y_val_folder = os.path.join(root_path, 'keras_png_slices_seg_validate')
+    y_test_folder = os.path.join(root_path, 'keras_png_slices_seg_test')
 
-    # Data splitting
-    X_train, X_val, y_train, y_val = train_test_split(X, y, test_size=0.1, random_state=42)
-    return X_train, X_val, y_train, y_val
+    # Load images from folders
+    X_train = load_images_from_folder(X_train_folder)
+    X_val = load_images_from_folder(X_val_folder)
+    X_test = load_images_from_folder(X_test_folder)
+
+    y_train = load_images_from_folder(y_train_folder)
+    y_val = load_images_from_folder(y_val_folder)
+    y_test = load_images_from_folder(y_test_folder)
+
+    # Normalize features to [0, 1] and assume labels are integers
+    X_train = X_train.astype('float32') / 255.0
+    X_val = X_val.astype('float32') / 255.0
+    X_test = X_test.astype('float32') / 255.0
+
+    y_train = y_train.astype('int')
+    y_val = y_val.astype('int')
+    y_test = y_test.astype('int')
+
+    return X_train, X_val, X_test, y_train, y_val, y_test
+
+X_train, X_val, X_test, y_train, y_val, y_test = preprocess_data()
+
 
 
 

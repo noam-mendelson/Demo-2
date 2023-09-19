@@ -4,7 +4,10 @@ import os
 from sklearn.model_selection import train_test_split
 import torch
 import torch.nn as nn
+import torch.optim as optim
 from torch.utils.data import DataLoader, TensorDataset 
+from torch.nn.functional import interpolate
+
 
 def load_images_from_folder(folder_path):
     images = []
@@ -14,10 +17,27 @@ def load_images_from_folder(folder_path):
             img = Image.open(img_path).convert('L')  # Convert image to grayscale
             img = np.array(img)
             images.append(img)
-    print(f"Loaded {len(images)} images from {folder_path}")  # Debugging line
     return np.array(images)
 
-def preprocess_data():
+def preprocess_data(C):  # Added parameter C for number of classes
+    # ... existing code to load and preprocess the images ...
+
+    # Normalize features to [0, 1] and assume labels are integers
+    X_train = X_train.astype('float32') / 255.0
+    X_val = X_val.astype('float32') / 255.0
+    X_test = X_test.astype('float32') / 255.0
+
+    # Normalize labels to be within [0, C-1]
+    y_train = (y_train / 255.0 * (C - 1)).astype(int)
+    y_val = (y_val / 255.0 * (C - 1)).astype(int)
+    y_test = (y_test / 255.0 * (C - 1)).astype(int)
+
+    # ... existing code to expand dimensions ...
+
+    return X_train, X_val, X_test, y_train, y_val, y_test
+
+
+def preprocess_data(C):  # Added parameter C for number of classes
     root_path = '/Users/noammendelson/Documents/Demo-2/keras_png_slices_data/'
 
     # Define folder paths
@@ -43,13 +63,24 @@ def preprocess_data():
     X_val = X_val.astype('float32') / 255.0
     X_test = X_test.astype('float32') / 255.0
 
-    y_train = y_train.astype('int')
-    y_val = y_val.astype('int')
-    y_test = y_test.astype('int')
+    # Normalize labels to be within [0, C-1]
+    y_train = (y_train / 255.0 * (C - 1)).astype(int)
+    y_val = (y_val / 255.0 * (C - 1)).astype(int)
+    y_test = (y_test / 255.0 * (C - 1)).astype(int)
+
+    # Expand dimensions for X
+    X_train = np.expand_dims(X_train, axis=1)
+    X_val = np.expand_dims(X_val, axis=1)
+    X_test = np.expand_dims(X_test, axis=1)
 
     return X_train, X_val, X_test, y_train, y_val, y_test
 
-X_train, X_val, X_test, y_train, y_val, y_test = preprocess_data()
+# Number of classes (replace with the correct number for your case)
+C = 4
+
+# Call the modified function
+X_train, X_val, X_test, y_train, y_val, y_test = preprocess_data(C)
+
 
 def numpy_to_tensor(X_train, y_train, X_val, y_val, X_test, y_test):
     # Convert the NumPy arrays to PyTorch tensors
@@ -87,24 +118,31 @@ class UNet(nn.Module):
         self.enc3 = self.conv_block(128, 256)
         
         # Bottleneck
-        self.bottleneck = self.conv_block(256, 512)
-        
+        self.bottleneck = self.conv_block(256, 512, max_pooling=False)
+
         # Decoder (Upsampling)
-        self.dec3 = self.upconv_block(512, 256)
-        self.dec2 = self.upconv_block(256, 128)
-        self.dec1 = self.upconv_block(128, 64)
+        self.upconv3 = self.upconv_block(512, 256) 
+        self.upconv2 = self.upconv_block(256, 128)  
+        self.upconv1 = self.upconv_block(128, 64)  
+
+        self.dec3 = self.conv_block(512, 256, max_pooling=False)
+        self.dec2 = self.conv_block(256, 128, max_pooling=False)
+        self.dec1 = self.conv_block(128, 64, max_pooling=False)
         
         # Output Layer
-        self.out_conv = nn.Conv2d(64, 4, kernel_size=1)  #4 classes for segments
-        
-    def conv_block(self, in_channels, out_channels):
-        return nn.Sequential(
+        self.out_conv = nn.Conv2d(64, 4, kernel_size=1)
+
+             
+    def conv_block(self, in_channels, out_channels, max_pooling=True):
+        layers = [
             nn.Conv2d(in_channels, out_channels, kernel_size=3, padding=1),
             nn.ReLU(inplace=True),
             nn.Conv2d(out_channels, out_channels, kernel_size=3, padding=1),
-            nn.ReLU(inplace=True),
-            nn.MaxPool2d(kernel_size=2, stride=2)
-        )
+            nn.ReLU(inplace=True)
+        ]
+        if max_pooling:
+            layers.append(nn.MaxPool2d(kernel_size=2, stride=2))
+        return nn.Sequential(*layers)
         
     def upconv_block(self, in_channels, out_channels):
         return nn.Sequential(
@@ -122,17 +160,75 @@ class UNet(nn.Module):
         x = self.bottleneck(x3)
         
         # Decoder
+        x = self.upconv3(x)
+        
+        # Upsample x3 to match the spatial dimensions of x
+        x3_upsampled = interpolate(x3, size=(x.shape[2], x.shape[3]), mode='bilinear', align_corners=True)
+        
+        x = torch.cat([x, x3_upsampled], dim=1)
         x = self.dec3(x)
-        x += x3
+
+        x = self.upconv2(x)
+        x2_upsampled = interpolate(x2, size=(x.shape[2], x.shape[3]), mode='bilinear', align_corners=True)  # Up-sample x2 if needed
+        x = torch.cat([x, x2_upsampled], dim=1)
         x = self.dec2(x)
-        x += x2
+
+        x = self.upconv1(x)
+        x1_upsampled = interpolate(x1, size=(x.shape[2], x.shape[3]), mode='bilinear', align_corners=True)  # Up-sample x1 if needed
+        x = torch.cat([x, x1_upsampled], dim=1)
         x = self.dec1(x)
-        x += x1
         
-        # Output layer
+        # Output Layer
         x = self.out_conv(x)
-        
         return x
+
+
+
+# Training loop with debugging statements
+model = UNet()
+criterion = nn.CrossEntropyLoss()
+optimizer = optim.Adam(model.parameters(), lr=0.001)
+
+num_epochs = 20
+
+for epoch in range(num_epochs):
+    model.train()
+    for batch in train_loader:
+        inputs, labels = batch
+        print(f"Batch input shape: {inputs.shape}, Batch label shape: {labels.shape}")
+        
+        outputs = model(inputs)
+        
+        loss = criterion(outputs, labels)
+        
+        optimizer.zero_grad()
+        loss.backward()
+        optimizer.step()
+
+    print(f"Epoch {epoch+1} completed.")
+
+
+    
+# model = UNet()
+# criterion = nn.CrossEntropyLoss()
+# optimizer = optim.Adam(model.parameters(), lr=0.001)
+
+# # Training loop
+# num_epochs = 20  # change this to fit your data
+# for epoch in range(num_epochs):
+#     model.train()
+#     for batch in train_loader:
+#         inputs, labels = batch
+#         outputs = model(inputs)
+        
+#         loss = criterion(outputs, labels)
+        
+#         optimizer.zero_grad()
+#         loss.backward()
+#         optimizer.step()
+
+# print("Training complete.") #testing
+
 
 
 

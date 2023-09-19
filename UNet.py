@@ -111,7 +111,7 @@ class UNet(nn.Module):
             nn.ConvTranspose2d(in_channels, out_channels, kernel_size=2, stride=2),
             nn.ReLU(inplace=True)
         )
-        
+    
     def forward(self, x):
         # Encoder
         x1 = self.enc1(x)

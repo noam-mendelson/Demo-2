@@ -24,7 +24,7 @@ def load_images(folder_path):
 # Function to preprocess data
 def preprocess_data(C, root_path):
     #root_path = "/Users/noammendelson/Documents/Demo-2/keras_png_slices_data"
-    root_path = "/home/Student/s4743292/your_data_folder_here"
+    root_path = "/home/Student/s4743292/keras_png_slices_data"
 
 
     #folder paths

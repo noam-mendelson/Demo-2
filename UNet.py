@@ -93,6 +93,8 @@ X_train_tensor, y_train_tensor, X_val_tensor, y_val_tensor, X_test_tensor, y_tes
 
 # Function to create DataLoader objects
 def data_loaders(X_train_tensor, y_train_tensor, X_val_tensor, y_val_tensor, X_test_tensor, y_test_tensor, batch_size=32):
+    batch_size = 32
+    
     # Create DataLoader objects
     train_dataset = TensorDataset(X_train_tensor, y_train_tensor)
     val_dataset = TensorDataset(X_val_tensor, y_val_tensor)

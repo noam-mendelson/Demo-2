@@ -10,6 +10,7 @@ from torch.nn.functional import interpolate
 from sklearn.metrics import f1_score
 import matplotlib.pyplot as plt
 
+# ------------------------ DATA PROCESSING FUNCTIONS ------------------------
 # Load images from a folder
 def load_images(folder_path):
     images = [] #store loaded
@@ -93,21 +94,29 @@ X_train_tensor, y_train_tensor, X_val_tensor, y_val_tensor, X_test_tensor, y_tes
 
 # Function to create DataLoader objects
 def data_loaders(X_train_tensor, y_train_tensor, X_val_tensor, y_val_tensor, X_test_tensor, y_test_tensor, batch_size=32):
-    batch_size = 32
+    batch_size = 32  
+
+    # # Create DataLoader objects
+    # train_dataset = TensorDataset(X_train_tensor, y_train_tensor)
+    # val_dataset = TensorDataset(X_val_tensor, y_val_tensor)
+    # test_dataset = TensorDataset(X_test_tensor, y_test_tensor)
+    
+    # train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
+    # val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False)
+    # test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False)
+    
+    # return train_loader, val_loader, test_loader
+    train_dataset = TensorDataset(torch.tensor(X_train).float(), torch.tensor(y_train).long())
+    val_dataset = TensorDataset(torch.tensor(X_val).float(), torch.tensor(y_val).long())
+    test_dataset = TensorDataset(torch.tensor(X_test).float(), torch.tensor(y_test).long())
     
     # Create DataLoader objects
-    train_dataset = TensorDataset(X_train_tensor, y_train_tensor)
-    val_dataset = TensorDataset(X_val_tensor, y_val_tensor)
-    test_dataset = TensorDataset(X_test_tensor, y_test_tensor)
-    
     train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
     val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False)
     test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False)
     
     return train_loader, val_loader, test_loader
-
-# Create DataLoader objects
-train_loader, val_loader, test_loader = data_loaders(X_train_tensor, y_train_tensor, X_val_tensor, y_val_tensor, X_test_tensor, y_test_tensor) 
+# ------------------------ MODEL DEFINITIONS ------------------------
 
 # Define the UNet model
 class UNet(nn.Module):
@@ -227,7 +236,7 @@ def validate(model, val_loader, criterion, C):
 
     return avg_val_loss, avg_dice_scores
 
-# Training loop
+# ------------------------ MODEL DEFINITIONS ------------------------
 model = UNet()
 criterion = nn.CrossEntropyLoss()
 optimizer = optim.Adam(model.parameters(), lr=0.001)
